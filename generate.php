@@ -7,6 +7,7 @@ foreach( scandir('downloads') as $file ) {
 	if( substr($file, -4) != '.zip' ) continue;
 	$files[] = $file;
 }
+rsort($files);
 
 function formatMustacheDownload($file) {
 	$file = substr($file, 0, -4);
@@ -26,9 +27,8 @@ ob_start();
   <head>
     <meta charset="utf-8">
     <title>php-mustache</title>
-    <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
-    <link href="bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet">
+    <link href="bootstrap.min.css" rel="stylesheet" charset="utf-8">
+    <link href="styles.css" rel="stylesheet" charset="utf-8">
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
       (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
