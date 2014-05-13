@@ -4,21 +4,33 @@ if( PHP_SAPI != 'cli' ) exit(1);
 
 $files = array();
 foreach( scandir('downloads') as $file ) {
-	if( substr($file, -4) != '.zip' ) continue;
+	$ext = substr($file, -4);
+	if( $ext != '.zip' && $ext != '.deb' ) continue;
 	$files[] = $file;
 }
 rsort($files);
 
 function formatMustacheDownload($file) {
+	$ext = substr($file, -4);
 	$file = substr($file, 0, -4);
-	list($extension, $mustacheVersion, $phpVersion, $arch, $compiler, $threadSafety) = explode('-', $file);
-	$phpVersionClean = $phpVersion[3] . '.' . $phpVersion[4];
-	return 'Mustache ' . $mustacheVersion . ' (' . join(', ', array(
-		'PHP ' . $phpVersionClean,
-		strtoupper($compiler),
-		$arch,
-		$threadSafety == 'ts' ? 'Thread safety' : 'No thread safety'
-	)) . ')';
+	if( $ext === '.deb' ) {
+		list($php, $extension, $versionArch) = explode('-', $file);
+		$parts = explode('_', $versionArch);
+		$mustacheVersion = array_shift($parts);
+		$arch = join('_', $parts);
+		return 'Mustache (.deb) ' . $mustacheVersion . ' (' . join(', ', array(
+                        $arch
+                )) . ')';
+	} else {
+		list($extension, $mustacheVersion, $phpVersion, $arch, $compiler, $threadSafety) = explode('-', $file);
+		$phpVersionClean = $phpVersion[3] . '.' . $phpVersion[4];
+		return 'Mustache ' . $mustacheVersion . ' (' . join(', ', array(
+			'PHP ' . $phpVersionClean,
+			strtoupper($compiler),
+			$arch,
+			$threadSafety == 'ts' ? 'Thread safety' : 'No thread safety'
+		)) . ')';
+	}
 }
 
 ob_start();
@@ -42,7 +54,7 @@ ob_start();
   <body>
     
     <div class="container">
-	<h3>Mustache Windows Builds</h3>
+	<h3>Mustache Builds</h3>
       <div class="well">
         <ul class="nav nav-list">
 			<?php foreach( $files as $file ):
