@@ -14,13 +14,14 @@ function formatMustacheDownload($file) {
 	$ext = substr($file, -4);
 	$file = substr($file, 0, -4);
 	if( $ext === '.deb' ) {
-		list($php, $extension, $versionArch) = explode('-', $file);
-		$parts = explode('_', $versionArch);
-		$mustacheVersion = array_shift($parts);
-		$arch = join('_', $parts);
-		return 'Mustache (.deb) ' . $mustacheVersion . ' (' . join(', ', array(
-                        $arch
-                )) . ')';
+		//list($php, $extension, $versionArch) = explode('-', $file);
+		//$parts = explode('_', $versionArch);
+		//$mustacheVersion = array_shift($parts);
+		//$arch = join('_', $parts);
+		//return 'Mustache (.deb) ' . $mustacheVersion . ' (' . join(', ', array(
+                //        $arch
+                //)) . ')';
+		return $file . $ext;
 	} else {
 		list($extension, $mustacheVersion, $phpVersion, $arch, $compiler, $threadSafety) = explode('-', $file);
 		$phpVersionClean = $phpVersion[3] . '.' . $phpVersion[4];
