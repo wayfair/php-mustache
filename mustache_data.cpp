@@ -187,6 +187,24 @@ static zend_always_inline bool is_valid_function(const zend_function * f)
 }
 /* }}} */
 
+#if PHP_MAJOR_VERSION < 7
+/* {{{ is_valid_mustache_data */
+static zend_always_inline bool is_valid_mustache_data(zval * data TSRMLS_DC)
+{
+  switch( Z_TYPE_P(data) ) {
+    case IS_RESOURCE:
+      return false;
+
+    case IS_OBJECT:
+      return !has_trait(data, "WF\\Shared\\Traits\\Mustache\\Unserializable_Trait" TSRMLS_CC);
+
+    default:
+      return true;
+  }
+}
+/* }}} */
+#endif
+
 /* {{{ is_valid_property */
 static zend_always_inline bool is_valid_property(const zend_property_info * prop)
 {
@@ -227,47 +245,49 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
   data_count = zend_hash_num_elements(data_hash);
   zend_hash_internal_pointer_reset_ex(data_hash, &data_pointer);
   while( zend_hash_get_current_data_ex(data_hash, (void**) &data_entry, &data_pointer) == SUCCESS ) {
-    // Get current key
-    key_type = zend_hash_get_current_key_ex(data_hash, &key_str, &key_len, &key_nindex, false, &data_pointer);
-    // Check key type
-    if( key_type == HASH_KEY_IS_LONG ) {
-      if( node->type == mustache::Data::TypeNone ) {
-        node->init(mustache::Data::TypeArray, data_count);
-      } else if( node->type != mustache::Data::TypeArray ) {
-        if( propName != NULL ) {
-          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
-        } else {
-          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+    if( is_valid_mustache_data(*data_entry TSRMLS_CC) ) {
+      // Get current key
+      key_type = zend_hash_get_current_key_ex(data_hash, &key_str, &key_len, &key_nindex, false, &data_pointer);
+      // Check key type
+      if( key_type == HASH_KEY_IS_LONG ) {
+        if( node->type == mustache::Data::TypeNone ) {
+          node->init(mustache::Data::TypeArray, data_count);
+        } else if( node->type != mustache::Data::TypeArray ) {
+          if( propName != NULL ) {
+            php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
+          } else {
+            php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+          }
+          return; // EXIT
         }
-        return; // EXIT
-      }
-    } else {
-      if( node->type == mustache::Data::TypeNone ) {
-        node->type = mustache::Data::TypeMap;
-      } else if( node->type != mustache::Data::TypeMap ) {
-        if( propName != NULL ) {
-          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
-        } else {
-          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+      } else {
+        if( node->type == mustache::Data::TypeNone ) {
+          node->type = mustache::Data::TypeMap;
+        } else if( node->type != mustache::Data::TypeMap ) {
+          if( propName != NULL ) {
+            php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
+          } else {
+            php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+          }
+          return; // EXIT
         }
-        return; // EXIT
       }
-    }
 
-    // Store value
-    if( node->type == mustache::Data::TypeArray ) {
-      child = new mustache::Data();
-      mustache_data_from_zval(child, *data_entry, NULL TSRMLS_CC);
-      node->array[ArrayPos++] = child;
-      node->length = ArrayPos;
-    } else if( node->type == mustache::Data::TypeMap ) {
-      child = new mustache::Data;
-      mustache_data_from_zval(child, *data_entry, key_str TSRMLS_CC);
-      ckey.assign(key_str);
-      node->data.insert(std::pair<std::string,mustache::Data*>(ckey,child));
-    } else {
-      php_error(E_WARNING, "Weird data conflict");
-      // Whoops
+      // Store value
+      if( node->type == mustache::Data::TypeArray ) {
+        child = new mustache::Data();
+        mustache_data_from_zval(child, *data_entry, NULL TSRMLS_CC);
+        node->array[ArrayPos++] = child;
+        node->length = ArrayPos;
+      } else if( node->type == mustache::Data::TypeMap ) {
+        child = new mustache::Data;
+        mustache_data_from_zval(child, *data_entry, key_str TSRMLS_CC);
+        ckey.assign(key_str);
+        node->data.insert(std::pair<std::string,mustache::Data*>(ckey,child));
+      } else {
+        php_error(E_WARNING, "Weird data conflict");
+        // Whoops
+      }
     }
     zend_hash_move_forward_ex(data_hash, &data_pointer);
   }
@@ -408,7 +428,8 @@ static zend_always_inline void mustache_data_from_object_properties_zval(mustach
 
     zend_hash_internal_pointer_reset_ex(data_hash, &data_pointer);
     while( zend_hash_get_current_data_ex(data_hash, (void **) &data_entry, &data_pointer) == SUCCESS ) {
-      if( zend_hash_get_current_key_ex(data_hash, &key_str, &key_len, &key_nindex, false, &data_pointer) == HASH_KEY_IS_STRING ) {
+      if( is_valid_mustache_data(*data_entry TSRMLS_CC) &&
+          zend_hash_get_current_key_ex(data_hash, &key_str, &key_len, &key_nindex, false, &data_pointer) == HASH_KEY_IS_STRING ) {
         if( key_len && key_str[0] ) { // skip private/protected
           prop_name = key_str;
 
