@@ -607,6 +607,16 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
 #if PHP_MAJOR_VERSION < 7
   } else if( is_instance(current, "WF\\Shared\\Models\\Collection" TSRMLS_CC) ) {
     mustache_data_from_collection_zval(node, current TSRMLS_CC);
+  } else if ( has_trait(current, "WF\\Shared\\Traits\\Mustache\\Serializable_As_String_Trait" TSRMLS_CC) ) {
+    zval * current_as_string;
+    ALLOC_ZVAL(current_as_string);
+    MAKE_COPY_ZVAL(&current, current_as_string);
+
+    convert_to_string(current_as_string);
+    node->type = mustache::Data::TypeString;
+    node->val = new std::string(Z_STRVAL_P(current_as_string)/*, (size_t) Z_STRLEN_P(current)*/);
+
+    zval_ptr_dtor(&current_as_string);
 #endif
   } else {
     // functions should take precendence over properties
