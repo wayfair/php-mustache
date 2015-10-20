@@ -233,11 +233,11 @@ bool mustache_parse_data_param(zval * data, mustache::Mustache * mustache, musta
       *node = mdPayload->data;
       return true;
     } else {
-      mustache_data_from_zval(*node, data TSRMLS_CC);
+      mustache_data_from_zval(*node, data, NULL TSRMLS_CC);
       return true;
     }
   } else {
-    mustache_data_from_zval(*node, data TSRMLS_CC);
+    mustache_data_from_zval(*node, data, NULL TSRMLS_CC);
     return true;
   }
 }
@@ -853,7 +853,7 @@ PHP_METHOD(Mustache, debugDataStructure)
     
     // Prepare template data
     mustache::Data templateData;
-    mustache_data_from_zval(&templateData, data TSRMLS_CC);
+    mustache_data_from_zval(&templateData, data, NULL TSRMLS_CC);
 
     // Reverse template data
     mustache_data_to_zval(&templateData, return_value TSRMLS_CC);

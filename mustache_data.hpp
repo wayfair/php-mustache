@@ -24,7 +24,7 @@ struct php_obj_MustacheData * php_mustache_data_object_fetch_object(zval * zv TS
 
 PHP_MINIT_FUNCTION(mustache_data);
 
-void mustache_data_from_zval(mustache::Data * node, zval * current TSRMLS_DC);
+void mustache_data_from_zval(mustache::Data * node, zval * current, const char * propName TSRMLS_DC);
 void mustache_data_to_zval(mustache::Data * node, zval * current TSRMLS_DC);
 
 PHP_METHOD(MustacheData, __construct);

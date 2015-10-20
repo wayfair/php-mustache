@@ -159,7 +159,7 @@ static zend_always_inline bool is_valid_property(const zend_property_info * prop
 
 /* {{{ mustache_data_from_array_zval */
 #if PHP_MAJOR_VERSION < 7
-static zend_always_inline void mustache_data_from_array_zval(mustache::Data * node, zval * current TSRMLS_DC)
+static zend_always_inline void mustache_data_from_array_zval(mustache::Data * node, zval * current, const char * propName TSRMLS_DC)
 {
   HashTable * data_hash = NULL;
   HashPosition data_pointer = NULL;
@@ -195,14 +195,22 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
       if( node->type == mustache::Data::TypeNone ) {
         node->init(mustache::Data::TypeArray, data_count);
       } else if( node->type != mustache::Data::TypeArray ) {
-        php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        if( propName != NULL ) {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
+        } else {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        }
         return; // EXIT
       }
     } else {
       if( node->type == mustache::Data::TypeNone ) {
         node->type = mustache::Data::TypeMap;
       } else if( node->type != mustache::Data::TypeMap ) {
-        php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        if( propName != NULL ) {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
+        } else {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        }
         return; // EXIT
       }
     }
@@ -210,12 +218,12 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
     // Store value
     if( node->type == mustache::Data::TypeArray ) {
       child = new mustache::Data();
-      mustache_data_from_zval(child, *data_entry TSRMLS_CC);
+      mustache_data_from_zval(child, *data_entry, NULL TSRMLS_CC);
       node->array[ArrayPos++] = child;
       node->length = ArrayPos;
     } else if( node->type == mustache::Data::TypeMap ) {
       child = new mustache::Data;
-      mustache_data_from_zval(child, *data_entry TSRMLS_CC);
+      mustache_data_from_zval(child, *data_entry, key_str TSRMLS_CC);
       ckey.assign(key_str);
       node->data.insert(std::pair<std::string,mustache::Data*>(ckey,child));
     } else {
@@ -228,7 +236,7 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
   data_hash->nApplyCount--;
 }
 #else
-static zend_always_inline void mustache_data_from_array_zval(mustache::Data * node, zval * current TSRMLS_DC)
+static zend_always_inline void mustache_data_from_array_zval(mustache::Data * node, zval * current, const char * propName TSRMLS_DC)
 {
   HashTable * data_hash = NULL;
   long data_count = 0;
@@ -257,14 +265,22 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
       if( node->type == mustache::Data::TypeNone ) {
         node->init(mustache::Data::TypeArray, data_count);
       } else if( node->type != mustache::Data::TypeArray ) {
-        php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        if( propName != NULL ) {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
+        } else {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        }
         return; // EXIT
       }
     } else {
       if( node->type == mustache::Data::TypeNone ) {
         node->type = mustache::Data::TypeMap;
       } else if( node->type != mustache::Data::TypeMap ) {
-        php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        if( propName != NULL ) {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported (key: %s)", propName);
+        } else {
+          php_error(E_WARNING, "Mixed numeric and associative arrays are not supported");
+        }
         return; // EXIT
       }
     }
@@ -272,12 +288,12 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
     // Store value
     if( node->type == mustache::Data::TypeArray ) {
   	  child = new mustache::Data();
-      mustache_data_from_zval(child, data_entry TSRMLS_CC);
+      mustache_data_from_zval(child, data_entry, NULL TSRMLS_CC);
       node->array[ArrayPos++] = child;
       node->length = ArrayPos;
     } else if( node->type == mustache::Data::TypeMap ) {
       child = new mustache::Data;
-      mustache_data_from_zval(child, data_entry TSRMLS_CC);
+      mustache_data_from_zval(child, data_entry, ZSTR_VAL(key) TSRMLS_CC);
       ckey.assign(ZSTR_VAL(key));
       node->data.insert(std::pair<std::string,mustache::Data*>(ckey, child));
     } else {
@@ -357,7 +373,7 @@ static zend_always_inline void mustache_data_from_object_properties_zval(mustach
             node->type = mustache::Data::TypeMap;
 
             child = new mustache::Data();
-            mustache_data_from_zval(child, *data_entry TSRMLS_CC);
+            mustache_data_from_zval(child, *data_entry, prop_name TSRMLS_CC);
             ckey.assign(prop_name);
             node->data.insert(std::pair<std::string,mustache::Data*>(ckey,child));
           }
@@ -419,7 +435,7 @@ static zend_always_inline void mustache_data_from_object_properties_zval(mustach
           node->type = mustache::Data::TypeMap;
 
           child = new mustache::Data;
-          mustache_data_from_zval(child, data_entry TSRMLS_CC);
+          mustache_data_from_zval(child, data_entry, prop_name TSRMLS_CC);
           ckey.assign(prop_name);
           node->data.insert(std::pair<std::string,mustache::Data*>(ckey, child));
         }
@@ -541,7 +557,7 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
 /* }}} mustache_data_from_object_zval */
 
 /* {{{ mustache_data_from_zval */
-void mustache_data_from_zval(mustache::Data * node, zval * current TSRMLS_DC)
+void mustache_data_from_zval(mustache::Data * node, zval * current, const char * propName TSRMLS_DC)
 {
 #if PHP_MAJOR_VERSION >= 7
   if (Z_TYPE_P(current) == IS_INDIRECT) {
@@ -585,7 +601,7 @@ void mustache_data_from_zval(mustache::Data * node, zval * current TSRMLS_DC)
           node->val = new std::string(Z_STRVAL_P(current)/*, (size_t) Z_STRLEN_P(current)*/);
           break;
       case IS_ARRAY:
-          mustache_data_from_array_zval(node, current TSRMLS_CC);
+          mustache_data_from_array_zval(node, current, propName TSRMLS_CC);
           break;
       case IS_OBJECT:
           mustache_data_from_object_zval(node, current TSRMLS_CC);
@@ -685,7 +701,7 @@ PHP_METHOD(MustacheData, __construct)
     
     // Convert data
     payload->data = new mustache::Data();
-    mustache_data_from_zval(payload->data, data TSRMLS_CC);
+    mustache_data_from_zval(payload->data, data, NULL TSRMLS_CC);
     
   } catch(...) {
     mustache_exception_handler(TSRMLS_C);
