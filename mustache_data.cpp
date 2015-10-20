@@ -138,6 +138,26 @@ PHP_MINIT_FUNCTION(mustache_data)
 /* }}} */
 
 #if PHP_MAJOR_VERSION < 7
+/* {{{ has_trait */
+static zend_always_inline bool has_trait(zval * data, const char * trait_name TSRMLS_DC)
+{
+  zend_class_entry * ce = Z_OBJCE_P(data);
+  zend_uint num_traits;
+
+  while( ce ) {
+    for( num_traits = 0; num_traits < ce->num_traits; num_traits++ ) {
+      if( strcmp(ce->traits[num_traits]->name, trait_name) == 0 ) {
+        return true;
+      }
+    }
+
+    ce = ce->parent;
+  }
+
+  return false;
+}
+/* }}} */
+
 /* {{{ is_instance */
 static zend_always_inline bool is_instance(zval * data, const char * class_name TSRMLS_DC)
 {
