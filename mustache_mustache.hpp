@@ -23,9 +23,9 @@ php_obj_Mustache * php_mustache_mustache_object_fetch_object(zval * zv TSRMLS_DC
 PHP_MINIT_FUNCTION(mustache_mustache);
 
 mustache::Mustache * mustache_new_Mustache(TSRMLS_D);
-void mustache_data_from_zval(mustache::Data * node, zval * current, const char * propName TSRMLS_DC);
+void mustache_data_from_zval(mustache::Data * node, zval * current, const char * propName, bool useLambdas TSRMLS_DC);
 bool mustache_parse_data_param(zval * data, mustache::Mustache * mustache,
-    mustache::Data ** node TSRMLS_DC);
+    mustache::Data ** node, bool useLambdas TSRMLS_DC);
 bool mustache_parse_partials_param(zval * array, mustache::Mustache * mustache,
     mustache::Node::Partials * partials TSRMLS_DC);
 bool mustache_parse_template_param(zval * tmpl, mustache::Mustache * mustache,
@@ -44,6 +44,9 @@ PHP_METHOD(Mustache, parse);
 PHP_METHOD(Mustache, render);
 PHP_METHOD(Mustache, tokenize);
 PHP_METHOD(Mustache, debugDataStructure);
+#if PHP_MAJOR_VERSION < 7
+PHP_METHOD(Mustache, autorender_by_callable);
+#endif
 
 #ifdef __cplusplus
   } // extern "C" 

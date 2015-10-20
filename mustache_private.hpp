@@ -54,6 +54,7 @@ typedef size_t strsize_t;
 
 #include <algorithm>
 #include <exception>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 

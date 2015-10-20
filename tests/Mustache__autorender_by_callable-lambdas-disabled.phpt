@@ -1,0 +1,28 @@
+--TEST--
+Mustache::autorender_by_callable() member function - lambdas disabled
+--SKIPIF--
+<?php
+if(!extension_loaded('mustache') || (defined('PHP_VERSION_ID') && PHP_VERSION_ID >= 70000)) die('skip ');
+ ?>
+--FILE--
+<?php
+$temp_file = dirname(__FILE__) . '/template.php';
+file_put_contents($temp_file, '{{value}}');
+
+$output = Mustache::autorender_by_callable(
+  $temp_file,
+  array('value' => function () { return 'foo'; }),
+  function ($partial_name) {
+    return dirname(__FILE__) . '/' . $partial_name . '.php';
+  }
+);
+
+var_dump($output);
+?>
+--CLEAN--
+<?php
+$temp_file = dirname(__FILE__) . '/template.php';
+unlink($temp_file);
+?>
+--EXPECT--
+string(0) ""

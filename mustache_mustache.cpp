@@ -56,6 +56,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(Mustache__debugDataStructure_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 1)
         ZEND_ARG_INFO(0, vars)
 ZEND_END_ARG_INFO()
+
+#if PHP_MAJOR_VERSION < 7
+ZEND_BEGIN_ARG_INFO_EX(Mustache__autorender_by_callable_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 3)
+  ZEND_ARG_INFO(0, path)
+  ZEND_ARG_INFO(0, data)
+  ZEND_ARG_INFO(0, partial_resolver)
+  ZEND_ARG_INFO(0, use_lambdas)
+ZEND_END_ARG_INFO()
+#endif
 /* }}} */
 
 /* {{{ Mustache_methods */
@@ -73,6 +82,9 @@ static zend_function_entry Mustache_methods[] = {
   PHP_ME(Mustache, render, Mustache__render_args, ZEND_ACC_PUBLIC)
   PHP_ME(Mustache, tokenize, Mustache__tokenize_args, ZEND_ACC_PUBLIC)
   PHP_ME(Mustache, debugDataStructure, Mustache__debugDataStructure_args, ZEND_ACC_PUBLIC)
+#if PHP_MAJOR_VERSION < 7
+  PHP_ME(Mustache, autorender_by_callable, Mustache__autorender_by_callable_args, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
   { NULL, NULL, NULL }
 };
 /* }}} */
@@ -201,6 +213,94 @@ PHP_MINIT_FUNCTION(mustache_mustache)
 }
 /* }}} */
 
+#if PHP_MAJOR_VERSION < 7
+/* {{{ mustache_autoload_partial_names */
+static std::vector<std::string> mustache_autoload_partial_names(mustache::Node * templateNodePtr) {
+  std::vector<std::string> partials;
+  if( templateNodePtr->children.size() > 0 ) {
+    for( mustache::Node::Children::iterator it = templateNodePtr->children.begin(); it != templateNodePtr->children.end(); it++ ) {
+      mustache::Node * child = *it;
+      if( child->children.size() > 0 ) {
+        std::vector<std::string> child_partials = mustache_autoload_partial_names(child);
+        partials.insert(partials.end(), child_partials.begin(), child_partials.end());
+      } else if( child->type == mustache::Node::TypePartial && child->data != NULL ) {
+        // partial name is stored in the node's data
+        partials.push_back(* (child->data));
+      }
+    }
+  }
+
+  return partials;
+}
+/* }}} */
+
+/* {{{ mustache_autoload_partials_by_callable */
+static void mustache_autoload_partials_by_callable(mustache::Mustache * mustache, mustache::Node * templateNodePtr, zend_fcall_info partialResolver, zend_fcall_info_cache partialResolverCache, mustache::Node::Partials * partialsPtr TSRMLS_DC)
+{
+  std::vector<std::string> partialNames = mustache_autoload_partial_names(templateNodePtr);
+
+  zval * partialResolverReturnValue = NULL;
+
+  partialResolver.no_separation = 0;
+  partialResolver.retval_ptr_ptr = &partialResolverReturnValue;
+  partialResolver.param_count = 1;
+
+  if( partialNames.size() > 0 ) {
+    for( std::vector<std::string>::iterator partialName = partialNames.begin(); partialName != partialNames.end(); partialName++ ) {
+      zval * partialResolverArg;
+      MAKE_STD_ZVAL(partialResolverArg);
+      ZVAL_STRINGL(partialResolverArg, partialName->c_str(), partialName->length(), 1);
+
+      zval ** partialResolverArgs[1];
+      partialResolverArgs[0] = &partialResolverArg;
+
+      partialResolver.params = partialResolverArgs;
+
+      if( zend_call_function(&partialResolver, &partialResolverCache TSRMLS_CC) == SUCCESS && partialResolverReturnValue && Z_TYPE_P(partialResolverReturnValue) == IS_STRING ) {
+        std::string partialPath = std::string(Z_STRVAL_P(partialResolverReturnValue));
+
+        std::ifstream ifs(partialPath);
+        std::string partialTemplateStr ( (std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+
+        mustache::Node * partialNode = new mustache::Node(); // freed in autorender_by_callable()
+        mustache->tokenize(&partialTemplateStr, partialNode);
+
+        mustache::Node containerNode;
+        containerNode.type = mustache::Node::TypeContainer;
+        containerNode.child = partialNode;
+
+        partialsPtr->insert(std::make_pair(*partialName, containerNode));
+
+        zval_ptr_dtor(&partialResolverReturnValue); // when done
+      } else {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "An error occurred while invoking the partial callback");
+      }
+
+      zval_ptr_dtor(&partialResolverArg);
+    }
+  }
+}
+/* }}} */
+
+/* {{{ mustache_autoload_all_partials_by_callable */
+static void mustache_autoload_all_partials_by_callable(mustache::Mustache * mustache, mustache::Node * templateNodePtr, zend_fcall_info partialResolver, zend_fcall_info_cache partialResolverCache, mustache::Node::Partials * templatePartialsPtr TSRMLS_DC)
+{
+  mustache::Node::Partials partials;
+  mustache_autoload_partials_by_callable(mustache, templateNodePtr, partialResolver, partialResolverCache, &partials TSRMLS_CC);
+
+  for( mustache::Node::Partials::iterator it = partials.begin(); it != partials.end(); it++ ) {
+    if( !templatePartialsPtr->count(it->first) ) {
+      templatePartialsPtr->insert(std::make_pair(it->first, it->second));
+      mustache::Node * partialNode = it->second.child;
+      if( partialNode != NULL ) {
+        mustache_autoload_all_partials_by_callable(mustache, partialNode, partialResolver, partialResolverCache, templatePartialsPtr TSRMLS_CC);
+      }
+    }
+  }
+}
+/* }}} */
+#endif
+
 /* {{{ mustache_new_Mustache */
 mustache::Mustache * mustache_new_Mustache(TSRMLS_D) {
   mustache::Mustache * mustache = new mustache::Mustache();
@@ -223,7 +323,7 @@ mustache::Mustache * mustache_new_Mustache(TSRMLS_D) {
 /* }}} */
 
 /* {{{ mustache_parse_data_param */
-bool mustache_parse_data_param(zval * data, mustache::Mustache * mustache, mustache::Data ** node TSRMLS_DC)
+bool mustache_parse_data_param(zval * data, mustache::Mustache * mustache, mustache::Data ** node, bool useLambdas TSRMLS_DC)
 {
   struct php_obj_MustacheData * mdPayload = NULL;
   
@@ -233,11 +333,11 @@ bool mustache_parse_data_param(zval * data, mustache::Mustache * mustache, musta
       *node = mdPayload->data;
       return true;
     } else {
-      mustache_data_from_zval(*node, data, NULL TSRMLS_CC);
+      mustache_data_from_zval(*node, data, NULL, useLambdas TSRMLS_CC);
       return true;
     }
   } else {
-    mustache_data_from_zval(*node, data, NULL TSRMLS_CC);
+    mustache_data_from_zval(*node, data, NULL, useLambdas TSRMLS_CC);
     return true;
   }
 }
@@ -663,7 +763,7 @@ PHP_METHOD(Mustache, execute)
     // Prepare template data
     mustache::Data templateData;
     mustache::Data * templateDataPtr = &templateData;
-    if( !mustache_parse_data_param(data, payload->mustache, &templateDataPtr TSRMLS_CC) ) {
+    if( !mustache_parse_data_param(data, payload->mustache, &templateDataPtr, true TSRMLS_CC) ) {
       RETURN_FALSE;
     }
     
@@ -769,7 +869,7 @@ PHP_METHOD(Mustache, render)
     // Prepare template data
     mustache::Data templateData;
     mustache::Data * templateDataPtr = &templateData;
-    if( !mustache_parse_data_param(data, payload->mustache, &templateDataPtr TSRMLS_CC) ) {
+    if( !mustache_parse_data_param(data, payload->mustache, &templateDataPtr, true TSRMLS_CC) ) {
       RETURN_FALSE;
       return;
     }
@@ -853,7 +953,7 @@ PHP_METHOD(Mustache, debugDataStructure)
     
     // Prepare template data
     mustache::Data templateData;
-    mustache_data_from_zval(&templateData, data, NULL TSRMLS_CC);
+    mustache_data_from_zval(&templateData, data, NULL, true TSRMLS_CC);
 
     // Reverse template data
     mustache_data_to_zval(&templateData, return_value TSRMLS_CC);
@@ -863,3 +963,102 @@ PHP_METHOD(Mustache, debugDataStructure)
   }
 }
 /* }}} Mustache::debugDataStructure */
+
+#if PHP_MAJOR_VERSION < 7
+/* {{{ proto string Mustache::autorender_by_callable(string path, mixed data, callable partial_resolver, bool use_lambdas = false) */
+PHP_METHOD(Mustache, autorender_by_callable)
+{
+  char * templatePath;
+  int templatePathLength;
+
+  zend_bool useLambdas = 0; // disable by default
+
+  int templateLength = 0;
+
+  zval * data = NULL;
+
+  zend_fcall_info partialResolver = empty_fcall_info;
+  zend_fcall_info_cache partialResolverCache = empty_fcall_info_cache;
+
+  if( zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "szf|b",
+                            &templatePath, &templatePathLength,
+                            &data,
+                            &partialResolver, &partialResolverCache,
+                            &useLambdas) == FAILURE ) {
+    return;
+  }
+
+  // parse template at given path
+  mustache::Mustache * mustache = mustache_new_Mustache(TSRMLS_C);
+  mustache::Node * templateNodePtr = new mustache::Node();
+  try {
+    std::ifstream ifs(templatePath);
+    std::string templateStr((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+    templateLength = templateStr.length();
+    mustache->tokenize(&templateStr, templateNodePtr);
+  } catch(...) {
+    delete mustache;
+    mustache = NULL;
+
+    delete templateNodePtr;
+    templateNodePtr = NULL;
+
+    RETURN_FALSE;
+    return;
+  }
+
+  try {
+    // Prepare template data
+    mustache::Data templateData;
+    mustache::Data * templateDataPtr = &templateData;
+    if( !mustache_parse_data_param(data, mustache, &templateDataPtr, useLambdas != 0 TSRMLS_CC) ) {
+      delete mustache;
+      mustache = NULL;
+
+      delete templateNodePtr;
+      templateNodePtr = NULL;
+
+      RETURN_FALSE;
+      return;
+    }
+
+    mustache::Node::Partials templatePartials;
+    mustache_autoload_all_partials_by_callable(mustache, templateNodePtr, partialResolver, partialResolverCache, &templatePartials TSRMLS_CC);
+
+    // Reserve length of template
+    std::string output;
+    output.reserve(templateLength);
+
+    // Render template
+    mustache->render(templateNodePtr, templateDataPtr, &templatePartials, &output);
+
+    for( mustache::Node::Partials::iterator it = templatePartials.begin(); it != templatePartials.end(); it++ ) {
+      mustache::Node * partialNode = it->second.child;
+      if( partialNode != NULL ) {
+        delete partialNode;
+      }
+    }
+
+    delete mustache;
+    mustache = NULL;
+
+    delete templateNodePtr;
+    templateNodePtr = NULL;
+
+    RETURN_STRING(output.c_str(), 1);
+    return;
+  } catch(...) {
+    mustache_exception_handler(TSRMLS_C);
+  }
+
+  delete mustache;
+  mustache = NULL;
+
+  delete templateNodePtr;
+  templateNodePtr = NULL;
+
+  RETURN_FALSE;
+  return;
+}
+/* }}} Mustache::autorender_by_callable */
+#endif

@@ -114,6 +114,19 @@ class Mustache
    * @return array The converted data structure
    */
   public function debugDataStructure(array $data) {}
+
+  /**
+   * Loads and renders a template from a given path, loading partials based on
+   * a callable.
+   *
+   * @param string   $tmplPath          The input template
+   * @param mixed    $data              The input data. May be any array, scalar,
+   *                                    or object, or an instance of MustacheData
+   * @param callable $callback          Resolves a partial name to its path
+   * @param bool     $useLambdas        Whether to include such values from $data
+   * @return false|string The string output, or false on failure
+   */
+  public static function autorender_by_callable($tmplPath, $data, callable $callback, $useLambdas = false) {}
 }
 
 /**
