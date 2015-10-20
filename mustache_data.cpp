@@ -137,6 +137,25 @@ PHP_MINIT_FUNCTION(mustache_data)
 }
 /* }}} */
 
+#if PHP_MAJOR_VERSION < 7
+/* {{{ is_instance */
+static zend_always_inline bool is_instance(zval * data, const char * class_name TSRMLS_DC)
+{
+  zend_class_entry * ce = Z_OBJCE_P(data);
+
+  while( ce ) {
+    if( strcmp(ce->name, class_name) == 0 ) {
+      return true;
+    }
+
+    ce = ce->parent;
+  }
+
+  return false;
+}
+/* }}} */
+#endif
+
 /* {{{ is_valid_function */
 static zend_always_inline bool is_valid_function(const zend_function * f)
 {
@@ -306,6 +325,23 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
 }
 #endif
 /* }}} mustache_data_from_array_zval */
+
+#if PHP_MAJOR_VERSION < 7
+/* {{{ mustache_data_from_collection_zval */
+static zend_always_inline void mustache_data_from_collection_zval(mustache::Data * node, zval * current TSRMLS_DC)
+{
+  HashTable * data_hash = NULL;
+  zval ** data_collection_models = NULL;
+
+  if( Z_OBJ_HT_P(current)->get_properties != NULL ) {
+    data_hash = Z_OBJ_HT_P(current)->get_properties(current TSRMLS_CC);
+  }
+  if( data_hash != NULL && zend_hash_find(data_hash, "models", sizeof("models"), (void **) &data_collection_models) == SUCCESS ) {
+    mustache_data_from_array_zval(node, *data_collection_models, NULL TSRMLS_CC);
+  }
+}
+/* }}} mustache_data_from_collection_zval */
+#endif
 
 /* {{{ mustache_data_from_double_zval */
 static zend_always_inline void mustache_data_from_double_zval(mustache::Data * node, zval * current TSRMLS_DC)
@@ -548,6 +584,10 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
   } else if( ce == zend_ce_closure ) {
     node->type = mustache::Data::TypeLambda;
     node->lambda = new ZendClosureLambda(current);
+#if PHP_MAJOR_VERSION < 7
+  } else if( is_instance(current, "WF\\Shared\\Models\\Collection" TSRMLS_CC) ) {
+    mustache_data_from_collection_zval(node, current TSRMLS_CC);
+#endif
   } else {
     // functions should take precendence over properties
     mustache_data_from_object_properties_zval(node, current TSRMLS_CC);
