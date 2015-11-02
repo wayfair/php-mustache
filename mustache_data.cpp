@@ -137,8 +137,8 @@ PHP_MINIT_FUNCTION(mustache_data)
 }
 /* }}} */
 
-#if PHP_MAJOR_VERSION < 7
 /* {{{ has_trait */
+#if PHP_MAJOR_VERSION < 7
 static zend_always_inline bool has_trait(zval * data, const char * trait_name TSRMLS_DC)
 {
   zend_class_entry * ce = Z_OBJCE_P(data);
@@ -156,8 +156,28 @@ static zend_always_inline bool has_trait(zval * data, const char * trait_name TS
 
   return false;
 }
+#else
+static zend_always_inline bool has_trait(zval * data, const char * trait_name TSRMLS_DC)
+{
+  zend_class_entry * ce = Z_OBJCE_P(data);
+  uint32_t num_traits;
+
+  while( ce ) {
+    for( num_traits = 0; num_traits < ce->num_traits; num_traits++ ) {
+      if( strcmp(ZSTR_VAL(ce->traits[num_traits]->name), trait_name) == 0 ) {
+        return true;
+      }
+    }
+
+    ce = ce->parent;
+  }
+
+  return false;
+}
+#endif
 /* }}} */
 
+#if PHP_MAJOR_VERSION < 7
 /* {{{ is_instance */
 static zend_always_inline bool is_instance(zval * data, const char * class_name TSRMLS_DC)
 {
@@ -630,7 +650,9 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
 #if PHP_MAJOR_VERSION < 7
   } else if( is_instance(current, "WF\\Shared\\Models\\Collection" TSRMLS_CC) ) {
     mustache_data_from_collection_zval(node, current, useLambdas TSRMLS_CC);
+#endif
   } else if ( has_trait(current, "WF\\Shared\\Traits\\Mustache\\Serializable_As_String_Trait" TSRMLS_CC) ) {
+#if PHP_MAJOR_VERSION < 7
     zval * current_as_string;
     ALLOC_ZVAL(current_as_string);
     MAKE_COPY_ZVAL(&current, current_as_string);
@@ -640,6 +662,13 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
     node->val = new std::string(Z_STRVAL_P(current_as_string)/*, (size_t) Z_STRLEN_P(current_as_string)*/);
 
     zval_ptr_dtor(&current_as_string);
+#else
+    zend_string * current_as_string = zval_get_string(current);
+
+    node->type = mustache::Data::TypeString;
+    node->val = new std::string(ZSTR_VAL(current_as_string)/*, (size_t) ZSTR_LEN(current_as_string)*/);
+
+    zend_string_release(current_as_string);
 #endif
   } else {
     mustache_data_from_object_properties_zval(node, current, useLambdas TSRMLS_CC);
