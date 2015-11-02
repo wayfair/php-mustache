@@ -701,7 +701,7 @@ void mustache_data_from_zval(mustache::Data * node, zval * current, const char *
           break;
       case IS_OBJECT:
           mustache_data_from_object_zval(node, current, useLambdas TSRMLS_CC);
-          break;    
+          break;
       default:
           php_error(E_WARNING, "Invalid data type: %d", Z_TYPE_P(current));
           break;
