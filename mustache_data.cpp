@@ -637,7 +637,7 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
 
     convert_to_string(current_as_string);
     node->type = mustache::Data::TypeString;
-    node->val = new std::string(Z_STRVAL_P(current_as_string)/*, (size_t) Z_STRLEN_P(current)*/);
+    node->val = new std::string(Z_STRVAL_P(current_as_string)/*, (size_t) Z_STRLEN_P(current_as_string)*/);
 
     zval_ptr_dtor(&current_as_string);
 #endif
