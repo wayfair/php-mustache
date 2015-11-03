@@ -177,14 +177,17 @@ static zend_always_inline bool has_trait(zval * data, const char * trait_name TS
 #endif
 /* }}} */
 
-#if PHP_MAJOR_VERSION < 7
 /* {{{ is_instance */
 static zend_always_inline bool is_instance(zval * data, const char * class_name TSRMLS_DC)
 {
   zend_class_entry * ce = Z_OBJCE_P(data);
 
   while( ce ) {
+#if PHP_MAJOR_VERSION < 7
     if( strcmp(ce->name, class_name) == 0 ) {
+#else
+    if( strcmp(ZSTR_VAL(ce->name), class_name) == 0 ) {
+#endif
       return true;
     }
 
@@ -194,7 +197,6 @@ static zend_always_inline bool is_instance(zval * data, const char * class_name 
   return false;
 }
 /* }}} */
-#endif
 
 /* {{{ is_valid_function */
 static zend_always_inline bool is_valid_function(const zend_function * f)
@@ -386,8 +388,8 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
 #endif
 /* }}} mustache_data_from_array_zval */
 
-#if PHP_MAJOR_VERSION < 7
 /* {{{ mustache_data_from_collection_zval */
+#if PHP_MAJOR_VERSION < 7
 static zend_always_inline void mustache_data_from_collection_zval(mustache::Data * node, zval * current, bool useLambdas TSRMLS_DC)
 {
   HashTable * data_hash = NULL;
@@ -400,8 +402,26 @@ static zend_always_inline void mustache_data_from_collection_zval(mustache::Data
     mustache_data_from_array_zval(node, *data_collection_models, NULL, useLambdas TSRMLS_CC);
   }
 }
-/* }}} mustache_data_from_collection_zval */
+#else
+static zend_always_inline void mustache_data_from_collection_zval(mustache::Data * node, zval * current, bool useLambdas TSRMLS_DC)
+{
+  HashTable * data_hash = NULL;
+  zval * data_collection_models = NULL;
+
+  if( Z_OBJ_HT_P(current)->get_properties != NULL ) {
+    data_hash = Z_OBJ_HT_P(current)->get_properties(current TSRMLS_CC);
+  }
+  if( data_hash != NULL && (data_collection_models = zend_hash_str_find(data_hash, "models", sizeof("models") - 1)) != NULL ) {
+    if( Z_TYPE_P(data_collection_models) == IS_INDIRECT ) {
+      data_collection_models = Z_INDIRECT_P(data_collection_models);
+    }
+    if( Z_TYPE_P(data_collection_models) == IS_ARRAY ) {
+      mustache_data_from_array_zval(node, data_collection_models, NULL, useLambdas TSRMLS_CC);
+    }
+  }
+}
 #endif
+/* }}} mustache_data_from_collection_zval */
 
 /* {{{ mustache_data_from_double_zval */
 static zend_always_inline void mustache_data_from_double_zval(mustache::Data * node, zval * current TSRMLS_DC)
@@ -647,10 +667,8 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
       node->type = mustache::Data::TypeLambda;
       node->lambda = new ZendClosureLambda(current);
     }
-#if PHP_MAJOR_VERSION < 7
   } else if( is_instance(current, "WF\\Shared\\Models\\Collection" TSRMLS_CC) ) {
     mustache_data_from_collection_zval(node, current, useLambdas TSRMLS_CC);
-#endif
   } else if ( has_trait(current, "WF\\Shared\\Traits\\Mustache\\Serializable_As_String_Trait" TSRMLS_CC) ) {
 #if PHP_MAJOR_VERSION < 7
     zval * current_as_string;
