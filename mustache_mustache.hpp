@@ -44,9 +44,7 @@ PHP_METHOD(Mustache, parse);
 PHP_METHOD(Mustache, render);
 PHP_METHOD(Mustache, tokenize);
 PHP_METHOD(Mustache, debugDataStructure);
-#if PHP_MAJOR_VERSION < 7
 PHP_METHOD(Mustache, autorender_by_callable);
-#endif
 
 #ifdef __cplusplus
   } // extern "C" 

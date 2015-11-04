@@ -2,7 +2,7 @@
 Mustache::autorender_by_callable() member function - lambdas enabled
 --SKIPIF--
 <?php
-if(!extension_loaded('mustache') || (defined('PHP_VERSION_ID') && PHP_VERSION_ID >= 70000)) die('skip ');
+if(!extension_loaded('mustache')) die('skip ');
  ?>
 --FILE--
 <?php

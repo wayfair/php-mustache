@@ -57,14 +57,12 @@ ZEND_BEGIN_ARG_INFO_EX(Mustache__debugDataStructure_args, ZEND_SEND_BY_VAL, ZEND
         ZEND_ARG_INFO(0, vars)
 ZEND_END_ARG_INFO()
 
-#if PHP_MAJOR_VERSION < 7
 ZEND_BEGIN_ARG_INFO_EX(Mustache__autorender_by_callable_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 3)
   ZEND_ARG_INFO(0, path)
   ZEND_ARG_INFO(0, data)
   ZEND_ARG_INFO(0, partial_resolver)
   ZEND_ARG_INFO(0, use_lambdas)
 ZEND_END_ARG_INFO()
-#endif
 /* }}} */
 
 /* {{{ Mustache_methods */
@@ -82,9 +80,7 @@ static zend_function_entry Mustache_methods[] = {
   PHP_ME(Mustache, render, Mustache__render_args, ZEND_ACC_PUBLIC)
   PHP_ME(Mustache, tokenize, Mustache__tokenize_args, ZEND_ACC_PUBLIC)
   PHP_ME(Mustache, debugDataStructure, Mustache__debugDataStructure_args, ZEND_ACC_PUBLIC)
-#if PHP_MAJOR_VERSION < 7
   PHP_ME(Mustache, autorender_by_callable, Mustache__autorender_by_callable_args, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-#endif
   { NULL, NULL, NULL }
 };
 /* }}} */
@@ -213,7 +209,6 @@ PHP_MINIT_FUNCTION(mustache_mustache)
 }
 /* }}} */
 
-#if PHP_MAJOR_VERSION < 7
 /* {{{ mustache_autoload_partial_names */
 static std::vector<std::string> mustache_autoload_partial_names(mustache::Node * templateNodePtr) {
   std::vector<std::string> partials;
@@ -235,6 +230,7 @@ static std::vector<std::string> mustache_autoload_partial_names(mustache::Node *
 /* }}} */
 
 /* {{{ mustache_autoload_partials_by_callable */
+#if PHP_MAJOR_VERSION < 7
 static void mustache_autoload_partials_by_callable(mustache::Mustache * mustache, mustache::Node * templateNodePtr, zend_fcall_info partialResolver, zend_fcall_info_cache partialResolverCache, mustache::Node::Partials * partialsPtr TSRMLS_DC)
 {
   std::vector<std::string> partialNames = mustache_autoload_partial_names(templateNodePtr);
@@ -280,6 +276,49 @@ static void mustache_autoload_partials_by_callable(mustache::Mustache * mustache
     }
   }
 }
+#else
+static void mustache_autoload_partials_by_callable(mustache::Mustache * mustache, mustache::Node * templateNodePtr, zend_fcall_info partialResolver, zend_fcall_info_cache partialResolverCache, mustache::Node::Partials * partialsPtr TSRMLS_DC)
+{
+  std::vector<std::string> partialNames = mustache_autoload_partial_names(templateNodePtr);
+
+  zval partialResolverReturnValue;
+
+  partialResolver.no_separation = 0;
+  partialResolver.retval = &partialResolverReturnValue;
+  partialResolver.param_count = 1;
+
+  if( partialNames.size() > 0 ) {
+    for( std::vector<std::string>::iterator partialName = partialNames.begin(); partialName != partialNames.end(); partialName++ ) {
+      zval partialResolverArg;
+      ZVAL_STRINGL(&partialResolverArg, partialName->c_str(), partialName->length());
+
+      partialResolver.params = &partialResolverArg;
+
+      if( zend_call_function(&partialResolver, &partialResolverCache) == SUCCESS && Z_TYPE(partialResolverReturnValue) == IS_STRING ) {
+        std::string partialPath = std::string(Z_STRVAL(partialResolverReturnValue));
+
+        std::ifstream ifs(partialPath);
+        std::string partialTemplateStr ( (std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+
+        mustache::Node * partialNode = new mustache::Node(); // freed in autorender_by_callable()
+        mustache->tokenize(&partialTemplateStr, partialNode);
+
+        mustache::Node containerNode;
+        containerNode.type = mustache::Node::TypeContainer;
+        containerNode.child = partialNode;
+
+        partialsPtr->insert(std::make_pair(*partialName, containerNode));
+
+        zval_dtor(&partialResolverReturnValue); // when done
+      } else {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING, "An error occurred while invoking the partial callback");
+      }
+
+      zval_dtor(&partialResolverArg);
+    }
+  }
+}
+#endif
 /* }}} */
 
 /* {{{ mustache_autoload_all_partials_by_callable */
@@ -299,7 +338,6 @@ static void mustache_autoload_all_partials_by_callable(mustache::Mustache * must
   }
 }
 /* }}} */
-#endif
 
 /* {{{ mustache_new_Mustache */
 mustache::Mustache * mustache_new_Mustache(TSRMLS_D) {
@@ -964,12 +1002,11 @@ PHP_METHOD(Mustache, debugDataStructure)
 }
 /* }}} Mustache::debugDataStructure */
 
-#if PHP_MAJOR_VERSION < 7
 /* {{{ proto string Mustache::autorender_by_callable(string path, mixed data, callable partial_resolver, bool use_lambdas = false) */
 PHP_METHOD(Mustache, autorender_by_callable)
 {
-  char * templatePath;
-  int templatePathLength;
+  char * templatePath = NULL;
+  long templatePathLength = 0;
 
   zend_bool useLambdas = 0; // disable by default
 
@@ -1045,7 +1082,11 @@ PHP_METHOD(Mustache, autorender_by_callable)
     delete templateNodePtr;
     templateNodePtr = NULL;
 
+#if PHP_MAJOR_VERSION < 7
     RETURN_STRING(output.c_str(), 1);
+#else
+    RETURN_STRING(output.c_str());
+#endif
     return;
   } catch(...) {
     mustache_exception_handler(TSRMLS_C);
@@ -1061,4 +1102,3 @@ PHP_METHOD(Mustache, autorender_by_callable)
   return;
 }
 /* }}} Mustache::autorender_by_callable */
-#endif
