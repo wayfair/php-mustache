@@ -437,6 +437,20 @@ static zend_always_inline void mustache_data_from_double_zval(mustache::Data * n
 }
 /* }}} */
 
+/* {{{ mustache_data_from_long_zval */
+static zend_always_inline void mustache_data_from_long_zval(mustache::Data * node, zval * current TSRMLS_DC)
+{
+  char * long_as_string;
+
+  spprintf(&long_as_string, 0, "%d", Z_LVAL_P(current));
+
+  node->type = mustache::Data::TypeString;
+  node->val = new std::string(long_as_string);
+
+  efree(long_as_string);
+}
+/* }}} */
+
 /* {{{ mustache_data_from_object_properties_zval */
 #if PHP_MAJOR_VERSION < 7
 static zend_always_inline void mustache_data_from_object_properties_zval(mustache::Data * node, zval * current, bool useLambdas TSRMLS_DC)
@@ -713,8 +727,7 @@ void mustache_data_from_zval(mustache::Data * node, zval * current, const char *
           node->val = new std::string();
           break;
       case IS_LONG:
-          node->type = mustache::Data::TypeString;
-          node->val = new std::string(std::to_string(Z_LVAL_P(current)));
+          mustache_data_from_long_zval(node, current TSRMLS_CC);
           break;
 #if PHP_MAJOR_VERSION < 7
       case IS_BOOL:
