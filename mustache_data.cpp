@@ -198,6 +198,19 @@ static zend_always_inline bool is_instance(zval * data, const char * class_name 
 }
 /* }}} */
 
+/* {{{ is_invokable_object */
+static zend_always_inline bool is_invokable_object(const zend_class_entry * ce)
+{
+  const HashTable * function_table = ce != NULL ? &ce->function_table : NULL;
+
+#if PHP_MAJOR_VERSION < 7
+  return function_table != NULL && zend_hash_exists(function_table, "__invoke", strlen("__invoke") + 1);
+#else
+  return function_table != NULL && zend_hash_str_exists(function_table, "__invoke", strlen("__invoke"));
+#endif
+}
+/* }}} is_invokable_object */
+
 /* {{{ is_valid_function */
 static zend_always_inline bool is_valid_function(const zend_function * f)
 {
@@ -703,11 +716,17 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
     zend_string_release(current_as_string);
 #endif
   } else {
-    mustache_data_from_object_properties_zval(node, current, useLambdas TSRMLS_CC);
-
     if( useLambdas ) {
-      // functions should take precendence over properties
-      mustache_data_from_object_functions_zval(node, current TSRMLS_CC);
+      if( is_invokable_object(ce) ) {
+        node->type = mustache::Data::TypeLambda;
+        node->lambda = new ClassMethodLambda(current, "__invoke");
+      } else {
+        // functions should take precendence over properties
+        mustache_data_from_object_properties_zval(node, current, useLambdas TSRMLS_CC);
+        mustache_data_from_object_functions_zval(node, current TSRMLS_CC);
+      }
+    } else {
+      mustache_data_from_object_properties_zval(node, current, useLambdas TSRMLS_CC);
     }
   }
 }
