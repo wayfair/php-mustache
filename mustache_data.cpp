@@ -442,7 +442,7 @@ static zend_always_inline void mustache_data_from_long_zval(mustache::Data * nod
 {
   char * long_as_string;
 
-  spprintf(&long_as_string, 0, "%d", Z_LVAL_P(current));
+  spprintf(&long_as_string, 0, "%ld", Z_LVAL_P(current));
 
   node->type = mustache::Data::TypeString;
   node->val = new std::string(long_as_string);
