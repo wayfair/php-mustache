@@ -847,7 +847,6 @@ PHP_METHOD(MustacheData, __construct)
 
     // Class parameters
     _this_zval = getThis();
-    zend_class_entry * _this_ce = Z_OBJCE_P(_this_zval);
     struct php_obj_MustacheData * payload = php_mustache_data_object_fetch_object(_this_zval TSRMLS_CC);
     
     // Check if argument was given
@@ -877,7 +876,6 @@ PHP_METHOD(MustacheData, toValue)
     }
 
     _this_zval = getThis();
-    zend_class_entry * _this_ce = Z_OBJCE_P(_this_zval);
     struct php_obj_MustacheData * payload = php_mustache_data_object_fetch_object(_this_zval TSRMLS_CC);
   
     // Check if data was initialized
