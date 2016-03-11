@@ -262,7 +262,7 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
   ulong key_nindex = 0;
   std::string ckey;
   
-  int ArrayPos = 0;
+  int length = 0;
   mustache::Data * child = NULL;
 
   node->type = mustache::Data::TypeNone;
@@ -310,8 +310,8 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
       if( node->type == mustache::Data::TypeArray ) {
         child = new mustache::Data();
         mustache_data_from_zval(child, *data_entry, NULL, useLambdas TSRMLS_CC);
-        node->array[ArrayPos++] = child;
-        node->length = ArrayPos;
+        node->array.push_back(child);
+        node->length = ++length;
       } else if( node->type == mustache::Data::TypeMap ) {
         child = new mustache::Data;
         mustache_data_from_zval(child, *data_entry, key_str, useLambdas TSRMLS_CC);
@@ -337,7 +337,7 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
   std::string ckey;
   zval * data_entry = NULL;
   
-  int ArrayPos = 0;
+  int length = 0;
   mustache::Data * child = NULL;
   zend_class_entry * ce = NULL;
 
@@ -382,8 +382,8 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
       if( node->type == mustache::Data::TypeArray ) {
         child = new mustache::Data();
         mustache_data_from_zval(child, data_entry, NULL, useLambdas TSRMLS_CC);
-        node->array[ArrayPos++] = child;
-        node->length = ArrayPos;
+        node->array.push_back(child);
+        node->length = ++length;
       } else if( node->type == mustache::Data::TypeMap ) {
         child = new mustache::Data;
         mustache_data_from_zval(child, data_entry, ZSTR_VAL(key), useLambdas TSRMLS_CC);
@@ -736,8 +736,13 @@ static zend_always_inline void mustache_data_from_object_zval(mustache::Data * n
 void mustache_data_from_zval(mustache::Data * node, zval * current, const char * propName, bool useLambdas TSRMLS_DC)
 {
 #if PHP_MAJOR_VERSION >= 7
-  if (Z_TYPE_P(current) == IS_INDIRECT) {
-    current = Z_INDIRECT_P(current);
+  switch( Z_TYPE_P(current) ) {
+    case IS_INDIRECT:
+      current = Z_INDIRECT_P(current);
+      break;
+    case IS_REFERENCE:
+      current = Z_REFVAL_P(current);
+      break;
   }
 #endif
   switch( Z_TYPE_P(current) ) {
