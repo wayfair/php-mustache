@@ -25,7 +25,7 @@ before_install:
   - travis_retry git clone git://github.com/jbboehr/libmustache.git libmustache
   - cd libmustache
   - autoreconf -fiv
-  - ./configure --prefix=$HOME/libmustache
+  - ./configure --prefix=$HOME/libmustache --without-mustache-spec
   - make
   - make install
   - cd ..
