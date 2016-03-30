@@ -428,6 +428,9 @@ static zend_always_inline void mustache_data_from_collection_zval(mustache::Data
     if( Z_TYPE_P(data_collection_models) == IS_INDIRECT ) {
       data_collection_models = Z_INDIRECT_P(data_collection_models);
     }
+
+    ZVAL_DEREF(data_collection_models);
+
     if( Z_TYPE_P(data_collection_models) == IS_ARRAY ) {
       mustache_data_from_array_zval(node, data_collection_models, NULL, useLambdas TSRMLS_CC);
     }
