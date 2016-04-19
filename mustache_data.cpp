@@ -352,7 +352,7 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
   }
 
   data_count = zend_hash_num_elements(data_hash);
-  ZEND_HASH_FOREACH_KEY_VAL(data_hash, key_nindex, key, data_entry) {
+  ZEND_HASH_FOREACH_KEY_VAL_IND(data_hash, key_nindex, key, data_entry) {
     if( is_valid_mustache_data(data_entry TSRMLS_CC) ) {
       if( !key ) {
         if( node->type == mustache::Data::TypeNone ) {
@@ -562,7 +562,7 @@ static zend_always_inline void mustache_data_from_object_properties_zval(mustach
       return;
     }
 
-    ZEND_HASH_FOREACH_KEY_VAL(data_hash, key_nindex, key, data_entry) {
+    ZEND_HASH_FOREACH_KEY_VAL_IND(data_hash, key_nindex, key, data_entry) {
       if( key && ZSTR_LEN(key) && ZSTR_VAL(key)[0] && is_valid_mustache_data(data_entry TSRMLS_CC) ) { // skip private/protected
         prop_name = ZSTR_VAL(key);
 
@@ -661,7 +661,7 @@ static zend_always_inline void mustache_data_from_object_functions_zval(mustache
       return;
     }
 
-    ZEND_HASH_FOREACH_KEY_VAL(data_hash, key_nindex, key, data_entry) {
+    ZEND_HASH_FOREACH_KEY_VAL_IND(data_hash, key_nindex, key, data_entry) {
       function_entry = (zend_function *) Z_PTR_P(data_entry);
       if( is_valid_function(function_entry) ) {
         node->type = mustache::Data::TypeMap;
