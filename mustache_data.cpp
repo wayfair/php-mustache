@@ -345,7 +345,7 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
 
   data_hash = HASH_OF(current);
 
-  if( ++data_hash->u.v.nApplyCount > 1 ) {
+  if( ZEND_HASH_APPLY_PROTECTION(data_hash) && ++data_hash->u.v.nApplyCount > 1 ) {
     php_error(E_WARNING, "Data includes circular reference");
     data_hash->u.v.nApplyCount--;
     return;
@@ -396,7 +396,9 @@ static zend_always_inline void mustache_data_from_array_zval(mustache::Data * no
     }
   } ZEND_HASH_FOREACH_END();
 
-  data_hash->u.v.nApplyCount--;
+  if( ZEND_HASH_APPLY_PROTECTION(data_hash) ) {
+    data_hash->u.v.nApplyCount--;
+  }
 }
 #endif
 /* }}} mustache_data_from_array_zval */
@@ -556,7 +558,7 @@ static zend_always_inline void mustache_data_from_object_properties_zval(mustach
     data_hash = Z_OBJ_HT_P(current)->get_properties(current TSRMLS_CC);
   }
   if( data_hash != NULL && zend_hash_num_elements(data_hash) > 0 ) {
-    if( ++data_hash->u.v.nApplyCount > 1 ) {
+    if( ZEND_HASH_APPLY_PROTECTION(data_hash) && ++data_hash->u.v.nApplyCount > 1 ) {
       php_error(E_WARNING, "Data includes circular reference");
       data_hash->u.v.nApplyCount--;
       return;
@@ -589,7 +591,9 @@ static zend_always_inline void mustache_data_from_object_properties_zval(mustach
       }
     } ZEND_HASH_FOREACH_END();
 
-    data_hash->u.v.nApplyCount--;
+    if( ZEND_HASH_APPLY_PROTECTION(data_hash) ) {
+      data_hash->u.v.nApplyCount--;
+    }
   }
 }
 #endif
@@ -655,7 +659,7 @@ static zend_always_inline void mustache_data_from_object_functions_zval(mustache
     data_hash = &ce->function_table;
   }
   if( data_hash != NULL && zend_hash_num_elements(data_hash) > 0 ) {
-    if( ++data_hash->u.v.nApplyCount > 1 ) {
+    if( ZEND_HASH_APPLY_PROTECTION(data_hash) && ++data_hash->u.v.nApplyCount > 1 ) {
       php_error(E_WARNING, "Data includes circular reference");
       data_hash->u.v.nApplyCount--;
       return;
@@ -676,7 +680,9 @@ static zend_always_inline void mustache_data_from_object_functions_zval(mustache
       }
     } ZEND_HASH_FOREACH_END();
 
-    data_hash->u.v.nApplyCount--;
+    if( ZEND_HASH_APPLY_PROTECTION(data_hash) ) {
+      data_hash->u.v.nApplyCount--;
+    }
   }
 }
 #endif
