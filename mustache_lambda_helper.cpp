@@ -138,7 +138,11 @@ PHP_METHOD(MustacheLambdaHelper, render)
   try {
     // Custom parameters
     char * template_str = NULL;
+#if PHP_MAJOR_VERSION >= 7
+    size_t template_len = 0;
+#else
     long template_len = 0;
+#endif
 
     // Check parameters
     zval * _this_zval = NULL;

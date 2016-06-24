@@ -638,7 +638,11 @@ PHP_METHOD(Mustache, setEscapeByDefault)
 {
   try {
     // Custom parameters
+#if PHP_MAJOR_VERSION >= 7
+    zend_long flag = 0;
+#else
     long flag = 0;
+#endif
   
     // Check parameters
     zval * _this_zval = NULL;
@@ -668,7 +672,11 @@ PHP_METHOD(Mustache, setStartSequence)
   try {
     // Custom parameters
     char * str = NULL;
+#if PHP_MAJOR_VERSION >= 7
+    size_t str_len = 0;
+#else
     long str_len = 0;
+#endif
     
     // Check parameters
     zval * _this_zval = NULL;
@@ -698,7 +706,11 @@ PHP_METHOD(Mustache, setStopSequence)
   try {
     // Custom parameters
     char * str = NULL;
+#if PHP_MAJOR_VERSION >= 7
+    size_t str_len = 0;
+#else
     long str_len = 0;
+#endif
     
     // Check parameters
     zval * _this_zval;
@@ -938,7 +950,11 @@ PHP_METHOD(Mustache, tokenize)
   try {
     // Custom parameters
     char * template_str = NULL;
+#if PHP_MAJOR_VERSION >= 7
+    size_t template_len = 0;
+#else
     long template_len = 0;
+#endif
   
     // Check parameters
     zval * _this_zval = NULL;
@@ -1004,7 +1020,11 @@ PHP_METHOD(Mustache, debugDataStructure)
 PHP_METHOD(Mustache, autorender_by_callable)
 {
   char * templatePath = NULL;
+#if PHP_MAJOR_VERSION >= 7
+  size_t templatePathLength = 0;
+#else
   long templatePathLength = 0;
+#endif
 
   zend_bool useLambdas = 0; // disable by default
 

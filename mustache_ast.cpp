@@ -254,13 +254,26 @@ PHP_MINIT_FUNCTION(mustache_ast)
 }
 /* }}} */
 
+#if PHP_MAJOR_VERSION >= 7
+/* {{{ size_t2int */
+static int size_t2int(size_t val) {
+  // via http://stackoverflow.com/questions/27490762/how-can-i-convert-to-size-t-from-int-safely
+  return (val <= INT_MAX) ? (int)((ssize_t)val) : -1;
+}
+/* }}} */
+#endif
+
 /* {{{ proto void MustacheAST::__construct(string binaryString) */
 PHP_METHOD(MustacheAST, __construct)
 {
   try {
     // Custom parameters
     char * str = NULL;
+#if PHP_MAJOR_VERSION >= 7
+    size_t str_len = 0;
+#else
     long str_len = 0;
+#endif
     
     // Check parameters
     zval * _this_zval = NULL;
@@ -280,7 +293,11 @@ PHP_METHOD(MustacheAST, __construct)
     }
     
     // Unserialize
+#if PHP_MAJOR_VERSION >= 7
+    mustache_node_from_binary_string(&payload->node, str, size_t2int(str_len));
+#else
     mustache_node_from_binary_string(&payload->node, str, str_len);
+#endif
     
   } catch(...) {
     mustache_exception_handler(TSRMLS_C);

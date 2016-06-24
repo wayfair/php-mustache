@@ -51,7 +51,11 @@ PHP_METHOD(MustacheCode, __construct)
   try {
     // Custom parameters
     char * str = NULL;
+#if PHP_MAJOR_VERSION >= 7
+    size_t str_len = 0;
+#else
     long str_len = 0;
+#endif
     
     // Check parameters
     zval * _this_zval = NULL;
